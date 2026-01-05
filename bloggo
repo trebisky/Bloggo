@@ -15,15 +15,17 @@ from pathlib import Path
 
 master_file = "master"
 toc_path = None
+build_path = "build"
 entries = []
 
 def error ( msg ) :
     print ( msg )
     exit ()
 
-def probe ( mfile ) :
+def setup ( mfile ) :
     global toc_path
     global entries
+    global build_path
 
     path = Path ( mfile )
     if not path.exists():
@@ -37,6 +39,10 @@ def probe ( mfile ) :
                     if len ( line.split() ) != 2 :
                         error ( "Bad toc line" );
                     toc_path = line.split()[1]
+                elif line.startswith ( "target" ) :
+                    if len ( line.split() ) != 2 :
+                        error ( "Bad target line" );
+                    build_path = line.split()[1]
                 else :
                     entries.append ( line )
     if toc_path == None :
@@ -44,10 +50,12 @@ def probe ( mfile ) :
     if len(entries) < 1 :
         error ( "No files specified" )
 
-def setup ( path ) :
-    build_path = Path ( path )
-    build_path.mkdir ( parents=True, exist_ok=True )
-    for item in build_path.iterdir():
+def setup_build () :
+    if build_path == ".." :
+        return
+    b_path = Path ( build_path )
+    b_path.mkdir ( parents=True, exist_ok=True )
+    for item in b_path.iterdir():
         try:
             if item.is_file() or item.is_symlink():
                 item.unlink() # Deletes files or links
@@ -71,7 +79,8 @@ def inject_toc ( toc ) :
     toc.write ( "</ul>\n" )
 
 def make_toc () :
-    with open ( "build/index.html", 'w' ) as toc_out :
+    toc_path = build_path + "/index.html"
+    with open ( toc_path, 'w' ) as toc_out :
         with open ( toc_path, 'r') as toc_in :
             for line in toc_in :
                 if line.startswith ( "%%toc" ) :
@@ -97,7 +106,7 @@ def process ( index ) :
     if  len( line.split() ) < 2 :
         error ( f"Bad line: {line}" )
     file = line.split()[0]
-    ofile = "build/" + file
+    ofile = build_path + "/" + file
     with open ( ofile, 'w' ) as f_out :
         with open ( file, 'r') as f_in :
             for line in f_in :
@@ -112,8 +121,8 @@ def make_files () :
 
 # ------------------------------
 
-probe ( master_file )
-setup ( "build" )
+setup ( master_file )
+setup_build ()
 make_toc ()
 make_files ()
 
