@@ -1,0 +1,121 @@
+#!/bin/python
+
+# Bloggo - program to add links and structure to a set of html files
+#  It reads the file "master" which contains a list of filenames
+#  and titles.
+#
+# The name sounds like a circus clown.  Something better could perhaps
+#  be chosen, but this will do I guess.
+#
+# Tom Trebisky   1-5-2026
+#
+
+#import os
+from pathlib import Path
+
+master_file = "master"
+toc_path = None
+entries = []
+
+def error ( msg ) :
+    print ( msg )
+    exit ()
+
+def probe ( mfile ) :
+    global toc_path
+    global entries
+
+    path = Path ( mfile )
+    if not path.exists():
+        error ( f"The file {path} does not exist")
+    if not path.is_file() :
+        error ( f"{mfile} is not a file")
+    with open ( master_file, 'r') as master:
+            for rline in master:
+                line = rline.strip()
+                if line.startswith ( "toc" ) :
+                    if len ( line.split() ) != 2 :
+                        error ( "Bad toc line" );
+                    toc_path = line.split()[1]
+                else :
+                    entries.append ( line )
+    if toc_path == None :
+        error ( "No TOC file specified" )
+    if len(entries) < 1 :
+        error ( "No files specified" )
+
+def setup ( path ) :
+    build_path = Path ( path )
+    build_path.mkdir ( parents=True, exist_ok=True )
+    for item in build_path.iterdir():
+        try:
+            if item.is_file() or item.is_symlink():
+                item.unlink() # Deletes files or links
+        except Exception as e:
+            print(f'Failed to delete {item}. Reason: {e}')
+
+def wr_link ( f, loc, title ) :
+    f.write ( "<li> <a href=\"" )
+    f.write ( loc )
+    f.write ( "\">" )
+    f.write ( title )
+    f.write ( "</a>\n" )
+
+def inject_toc ( toc ) :
+    toc.write ( "<ul>\n" )
+    for line in entries:
+        info = line.split ( maxsplit=1 )
+        if  len(info) != 2 :
+            error ( f"Bad line: {line.strip()}" )
+        wr_link ( toc, info[0], info[1] )
+    toc.write ( "</ul>\n" )
+
+def make_toc () :
+    with open ( "build/index.html", 'w' ) as toc_out :
+        with open ( toc_path, 'r') as toc_in :
+            for line in toc_in :
+                if line.startswith ( "%%toc" ) :
+                    inject_toc ( toc_out )
+                else :
+                    toc_out.write ( line )
+
+def inject_nav ( ff, index ) :
+    ne = len(entries)
+    if index > 0 :
+        info = entries[index-1].split ( maxsplit=1 )
+        title = f"previous -- {info[1]}"
+        wr_link ( ff, info[0], title ) 
+    wr_link ( ff, "index.html", "table of contents" ) 
+    if index < ne-2 :
+        info = entries[index+1].split ( maxsplit=1 )
+        title = f"next -- {info[1]}"
+        wr_link ( ff, info[0], title ) 
+    ff.write ( "\n" )
+
+def process ( index ) :
+    line = entries[index]
+    if  len( line.split() ) < 2 :
+        error ( f"Bad line: {line}" )
+    file = line.split()[0]
+    ofile = "build/" + file
+    with open ( ofile, 'w' ) as f_out :
+        with open ( file, 'r') as f_in :
+            for line in f_in :
+                if line.startswith ( "%%nav" ) :
+                    inject_nav ( f_out, index )
+                else :
+                    f_out.write ( line )
+
+def make_files () :
+    for index in range(len(entries)):
+        process ( index )
+
+# ------------------------------
+
+probe ( master_file )
+setup ( "build" )
+make_toc ()
+make_files ()
+
+# THE END
+
