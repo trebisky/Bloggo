@@ -10,7 +10,7 @@
 # Tom Trebisky   1-5-2026
 #
 
-#import os
+import os
 from pathlib import Path
 
 master_file = "master"
@@ -21,6 +21,15 @@ entries = []
 def error ( msg ) :
     print ( msg )
     exit ()
+
+def unlock ( path ) :
+    p = Path ( path )
+    if not p.exists():
+        return
+    os.chmod ( path, 0o644 )
+
+def lock ( path ) :
+    os.chmod ( path, 0o444 )
 
 def setup ( mfile ) :
     global toc_path
@@ -85,6 +94,7 @@ def inject_toc ( toc ) :
 
 def make_toc () :
     toc_new = build_path + "/index.html"
+    unlock ( toc_new )
     with open ( toc_new, 'w' ) as toc_out :
         wr_boiler ( toc_out )
         with open ( toc_path, 'r') as toc_in :
@@ -93,6 +103,7 @@ def make_toc () :
                     inject_toc ( toc_out )
                 else :
                     toc_out.write ( line )
+    lock ( toc_new )
 
 def inject_nav ( ff, index ) :
     ff.write ( "<p>\n" );
@@ -116,6 +127,7 @@ def process ( index ) :
         error ( f"Bad line: {line}" )
     file = line.split()[0]
     ofile = build_path + "/" + file
+    unlock ( ofile )
     with open ( ofile, 'w' ) as f_out :
         wr_boiler ( f_out )
         with open ( file, 'r') as f_in :
@@ -124,6 +136,7 @@ def process ( index ) :
                     inject_nav ( f_out, index )
                 else :
                     f_out.write ( line )
+    lock ( ofile )
 
 def make_files () :
     for index in range(len(entries)):
