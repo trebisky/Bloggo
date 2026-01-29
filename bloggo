@@ -17,6 +17,7 @@ master_file = "master"
 toc_path = None
 build_path = "build"
 entries = []
+copy_list = []
 
 def error ( msg ) :
     print ( msg )
@@ -48,6 +49,10 @@ def setup ( mfile ) :
                     if len ( line.split() ) != 2 :
                         error ( "Bad toc line" );
                     toc_path = line.split()[1]
+                elif line.startswith ( "copy" ) :
+                    if len ( line.split() ) != 2 :
+                        error ( "Bad copy line" );
+                    copy_list.append ( line.split()[1] )
                 elif line.startswith ( "target" ) :
                     if len ( line.split() ) != 2 :
                         error ( "Bad target line" );
@@ -138,15 +143,34 @@ def process ( index ) :
                     f_out.write ( line )
     lock ( ofile )
 
+def verbatim ( file ) :
+    ofile = build_path + "/" + file
+    unlock ( ofile )
+    with open ( ofile, 'w' ) as f_out :
+        with open ( file, 'r') as f_in :
+            for line in f_in :
+                f_out.write ( line )
+    lock ( ofile )
+
 def make_files () :
     for index in range(len(entries)):
         process ( index )
+
+def copy_files () :
+    for file in copy_list :
+        verbatim ( file )
+
+def dump () :
+    print ( "build_path ", build_path )
+    exit ()
 
 # ------------------------------
 
 setup ( master_file )
 setup_build ()
+#dump ()
 make_toc ()
+copy_files ()
 make_files ()
 
 # THE END
